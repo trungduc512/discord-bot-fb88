@@ -1,7 +1,14 @@
 // index.js
-import { Client, GatewayIntentBits, SlashCommandBuilder } from "discord.js";
+import {
+  Client,
+  GatewayIntentBits,
+  SlashCommandBuilder,
+  REST,
+  Routes,
+} from "discord.js";
 import { connectDB } from "./mongo.js";
 import dotenv from "dotenv";
+import commands from "./commands/command.strategy.js";
 
 const pingCommand = new SlashCommandBuilder()
   .setName("ping")
@@ -18,6 +25,32 @@ const client = new Client({
     GatewayIntentBits.MessageContent,
   ],
 });
+
+// Đăng ký lệnh slash khi bot khởi động
+(async () => {
+  const rest = new REST({ version: "10" }).setToken(process.env.BOT_TOKEN);
+  const commandsData = Array.from(commands.values()).map((cmd) =>
+    new SlashCommandBuilder()
+      .setName(cmd.name)
+      .setDescription(cmd.description)
+      .toJSON()
+  );
+
+  try {
+    console.log("⚡ Deploying slash commands...");
+    await rest.put(
+      Routes.applicationGuildCommands(
+        process.env.CLIENT_ID,
+        process.env.GUILD_ID
+      ),
+      { body: commandsData }
+    );
+    console.log("✅ Slash commands deployed:");
+    Array.from(commands.keys()).forEach((name) => console.log(`- ${name}`));
+  } catch (error) {
+    console.error(error);
+  }
+})();
 
 // Khi bot khởi động, kết nối database
 client.once("clientReady", () => {
@@ -48,9 +81,17 @@ client.on("messageCreate", (message) => {
 client.on("interactionCreate", async (interaction) => {
   if (!interaction.isChatInputCommand()) return;
 
-  if (interaction.commandName === "ping") {
-    console.log(interaction.member.nickname);
-    await interaction.reply("Pong cai ditmemay!");
+  const commandName = interaction.commandName;
+  console.log("Command Name:", commandName);
+
+  const command = commands.get(interaction.commandName);
+  if (!command) return;
+
+  try {
+    await command.execute(interaction);
+  } catch (error) {
+    console.error(error);
+    await interaction.reply("Đã xảy ra lỗi khi chạy lệnh!");
   }
 });
 
