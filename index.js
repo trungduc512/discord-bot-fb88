@@ -10,10 +10,6 @@ import { connectDB } from "./mongo.js";
 import dotenv from "dotenv";
 import commands from "./commands/command.strategy.js";
 
-const pingCommand = new SlashCommandBuilder()
-  .setName("ping")
-  .setDescription("Replies with Pong!");
-
 // Cấu hình biến môi trường từ file .env
 dotenv.config();
 
